@@ -80,25 +80,10 @@
             font-size: 30px;
             cursor: pointer;
         }
-        .browse-btn {
-            position: fixed;
-            right: 20px;
-            bottom: 20px;
-            padding: 14px 22px;
-            border: none;
-            border-radius: 28px;
-            background: #8BC34A;
-            color: #111;
-            font-size: 16px;
-            cursor: pointer;
-            z-index: 101;
-            box-shadow: 0 8px 20px rgba(0,0,0,0.35);
-        }
     </style>
 </head>
 <body>
     <canvas id="gameCanvas"></canvas>
-    <button id="browseBtn" class="browse-btn" onclick="openCatalog()">Browse Games</button>
     
     <div id="catalogOverlay">
         <div class="close-btn" onclick="closeCatalog()">×</div>
@@ -123,14 +108,11 @@
         let lastTime = 0;
         let allGames = [];
 
-        async function init() {
+        function init() {
             window.focus();
             resize();
             resetGame();
-            await fetchGames();
-            if (allGames.length > 0) {
-                openCatalog();
-            }
+            fetchGames();
             requestAnimationFrame(gameLoop);
         }
 
