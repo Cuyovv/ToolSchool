@@ -80,10 +80,82 @@
             font-size: 30px;
             cursor: pointer;
         }
+        #callBtn {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            width: 50px;
+            height: 50px;
+            background: #8BC34A;
+            border: none;
+            border-radius: 50%;
+            font-size: 24px;
+            cursor: pointer;
+            z-index: 99;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.3s, transform 0.2s;
+            box-shadow: 0 4px 12px rgba(139, 195, 74, 0.3);
+        }
+        #callBtn:hover {
+            background: #9CCC65;
+            transform: scale(1.1);
+        }
+        #callBtn.active {
+            background: #f44336;
+        }
+        #callOverlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            z-index: 101;
+        }
+        #jitsiContainer {
+            width: 100%;
+            height: 100%;
+        }
+        #callHeader {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 102;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px 15px;
+            border-radius: 5px;
+            color: white;
+            font-size: 14px;
+        }
+        #closeCallBtn {
+            margin-left: 15px;
+            padding: 5px 10px;
+            background: #f44336;
+            border: none;
+            color: white;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        #closeCallBtn:hover {
+            background: #d32f2f;
+        }
     </style>
 </head>
 <body>
+    <button id="callBtn" title="Start/Join Video Call">☎️</button>
+    
     <canvas id="gameCanvas"></canvas>
+    
+    <div id="callOverlay">
+        <div id="callHeader">
+            Video Call Room: <span id="roomNameDisplay"></span>
+            <button id="closeCallBtn">End Call</button>
+        </div>
+        <div id="jitsiContainer"></div>
+    </div>
     
     <div id="catalogOverlay">
         <div class="close-btn" onclick="closeCatalog()">×</div>
@@ -347,6 +419,107 @@
         });
 
         window.addEventListener('resize', resize);
+
+        // Video Call functionality with Jitsi Meet
+        let jitsiApi = null;
+        let isInCall = false;
+        let currentRoomName = null;
+
+        // Generate a room name based on timestamp (so people pressing at similar times join the same call)
+        function generateRoomName() {
+            const now = new Date();
+            const timeSlot = Math.floor(now.getTime() / 60000); // Group by minute
+            return `toolschool-call-${timeSlot}`;
+        }
+
+        function initJitsi() {
+            // Load Jitsi Meet API library if not already loaded
+            if (!window.JitsiMeetExternalAPI) {
+                const script = document.createElement('script');
+                script.src = 'https://meet.jit.si/external_api.js';
+                document.head.appendChild(script);
+                script.onload = startVideoCall;
+            } else {
+                startVideoCall();
+            }
+        }
+
+        function startVideoCall() {
+            if (isInCall) {
+                closeVideoCall();
+                return;
+            }
+
+            currentRoomName = generateRoomName();
+            const container = document.getElementById('jitsiContainer');
+            
+            // Show overlay
+            document.getElementById('callOverlay').style.display = 'block';
+            document.getElementById('roomNameDisplay').textContent = currentRoomName;
+            document.getElementById('callBtn').classList.add('active');
+            isInCall = true;
+            isCatalogOpen = true; // Prevent snake movement during call
+
+            const options = {
+                roomName: currentRoomName,
+                width: '100%',
+                height: '100%',
+                parentNode: container,
+                userInfo: {
+                    displayName: 'User ' + Math.floor(Math.random() * 10000)
+                },
+                interfaceConfigOverrides: {
+                    DEFAULT_BACKGROUND: '#1a1a1a',
+                    SHOW_JITSI_WATERMARK: false,
+                    MOBILE_APP_PROMO: false,
+                    TOOLBAR_BUTTONS: [
+                        'microphone', 'camera', 'closedcaptions', 'desktop',
+                        'fullscreen', 'fodeviceselection', 'hangup', 'profile',
+                        'chat', 'recording', 'livestreaming', 'etherpad',
+                        'sharedvideo', 'settings', 'raisehand', 'videoquality',
+                        'filmstrip', 'invite', 'feedback', 'stats', 'shortcuts',
+                        'tileview', 'select-background', 'download'
+                    ]
+                }
+            };
+
+            try {
+                jitsiApi = new window.JitsiMeetExternalAPI('meet.jit.si', options);
+
+                jitsiApi.addEventListener('videoConferenceLeft', () => {
+                    closeVideoCall();
+                });
+            } catch (e) {
+                console.error('Error initializing Jitsi:', e);
+                alert('Could not start video call. Please try again.');
+                closeVideoCall();
+            }
+        }
+
+        function closeVideoCall() {
+            if (jitsiApi) {
+                jitsiApi.dispose();
+                jitsiApi = null;
+            }
+
+            document.getElementById('callOverlay').style.display = 'none';
+            document.getElementById('jitsiContainer').innerHTML = '';
+            document.getElementById('callBtn').classList.remove('active');
+            isInCall = false;
+            isCatalogOpen = false;
+            currentRoomName = null;
+            createFood(); // Reset game
+        }
+
+        document.getElementById('callBtn').addEventListener('click', initJitsi);
+        document.getElementById('closeCallBtn').addEventListener('click', closeVideoCall);
+
+        // Close call with Escape key
+        window.addEventListener('keydown', e => {
+            if (e.key === 'Escape' && isInCall) {
+                closeVideoCall();
+            }
+        });
 
         init();
     </script>
